@@ -1,0 +1,20 @@
+{
+    "name": "shazam-clone",
+    "version": "1.0.0",
+    "description": "Shazam Clone - Full Stack Application",
+    "scripts": {
+        "start": "node backend/server.js",
+        "server": "nodemon backend/server.js",
+        "client": "npm start --prefix frontend",
+        "dev": "concurrently \"npm run server\" \"npm run client\"",
+        "heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm install --prefix frontend && npm run build --prefix frontend"
+    },
+    "dependencies": {
+        "concurrently": "^7.6.0",
+        "cors": "^2.8.5",
+        "dotenv": "^16.5.0",
+        "express": "^5.1.0",
+        "mongoose": "^8.15.1",
+        "react": "^19.1.0"
+    }
+}
