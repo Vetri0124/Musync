@@ -15,7 +15,7 @@ const Header = () => {
 
   return (
     <HeaderContainer>
-      <Logo to="/">Shazam Clone</Logo>
+      <Logo to="/">MUS-YNC</Logo>
       <Nav>
         <NavItem to="/">Home</NavItem>
         <NavItem to="/search">Search</NavItem>

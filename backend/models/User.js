@@ -1,7 +1,8 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const config = require('../config/config');
+ const config = require('../config/config'); // <--- You can likely remove this line now
+                                            // if config.jwtSecret is no longer used elsewhere for JWTs
 
 const UserSchema = new mongoose.Schema({
   username: {
@@ -62,9 +63,13 @@ UserSchema.pre('save', async function(next) {
 
 // Sign JWT and return
 UserSchema.methods.getSignedJwtToken = function() {
-  return jwt.sign({ id: this._id }, config.jwtSecret, {
-    expiresIn: process.env.JWT_EXPIRE || '30d'
-  });
+  return jwt.sign(
+    { id: this._id },
+    process.env.JWT_SECRET, // <--- CRITICAL FIX: Use process.env.JWT_SECRET here
+    {
+      expiresIn: process.env.JWT_EXPIRE || '30d'
+    }
+  );
 };
 
 // Match user entered password to hashed password in database

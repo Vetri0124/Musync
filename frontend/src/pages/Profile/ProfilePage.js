@@ -16,7 +16,7 @@ const ProfilePage = () => {
       <ProfileInfo>
         <div>
           <h3>Name</h3>
-          <p>{user.name}</p>
+          <p>{user.username}</p>
         </div>
         <div>
           <h3>Email</h3>
