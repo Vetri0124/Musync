@@ -1,10 +1,12 @@
 const express = require('express');
 const { recognizeSong } = require('../controllers/recognize');
 const { protect } = require('../middleware/auth');
-const fileUpload = require('../middleware/fileUpload');
+// No need to require fileUpload here if you're using express-fileupload globally
 
 const router = express.Router();
 
-router.post('/', protect, fileUpload.single('audio'), recognizeSong);
+// Remove fileUpload.single('audio') from here.
+// The file is already processed by the global express-fileupload middleware.
+router.post('/', protect, recognizeSong);
 
 module.exports = router;

@@ -2,11 +2,37 @@ const fft = require('fft-js');
 const fs = require('fs'); // For reading and deleting temporary files
 const util = require('util');
 const exec = util.promisify(require('child_process').exec); // For running FFmpeg commands
+const crypto = require('crypto'); // Node.js built-in crypto module
 
-// Your existing processAudio function
+// Helper to find the next power of 2
+function nextPowerOf2(n) {
+    if (n === 0) return 1;
+    n--;
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    return n + 1;
+}
+
+// Your existing processAudio function with padding logic
 function processAudio(audioData, sampleRate) {
+    // 1. Convert to Float32Array
     const floatData = new Float32Array(audioData);
-    const windowed = applyHannWindow(floatData);
+
+    // 2. Determine target FFT size (next power of 2)
+    const fftSize = nextPowerOf2(floatData.length);
+
+    // 3. Create a new Float32Array for windowed data and pad with zeros
+    const paddedData = new Float32Array(fftSize).fill(0); // Initialize with zeros
+    paddedData.set(floatData); // Copy original data into the padded array
+
+    // 4. Apply Hann Window to the padded data
+    const windowed = applyHannWindow(paddedData);
+
+    // 5. Perform FFT
+    // fft-js expects an array where elements are real numbers, it will assume imaginary parts are zero.
     const phasors = fft.fft(windowed);
     const magnitudes = fft.util.fftMag(phasors);
 
@@ -34,24 +60,15 @@ async function createFingerprint(audioFilePath) {
 
     try {
         // Step 1: Use FFmpeg to decode the uploaded audio file to a raw, mono WAV format
-        // This makes the audio data consistent for your processAudio function.
-        // -i "${audioFilePath}": Input file
-        // -f s16le: Force signed 16-bit little-endian format (raw PCM)
-        // -ac 1: 1 audio channel (mono)
-        // -ar 44100: Set audio sample rate to 44.1 kHz
-        // -acodec pcm_s16le: Use PCM 16-bit little-endian codec
-        // "${rawAudioPath}": Output file path
         console.log(`[createFingerprint] Running FFMPEG to decode: ${audioFilePath}`);
         await exec(`ffmpeg -i "${audioFilePath}" -f s16le -ac 1 -ar ${sampleRate} -acodec pcm_s16le "${rawAudioPath}"`);
         console.log(`[createFingerprint] FFMPEG decoding complete. Raw audio saved to: ${rawAudioPath}`);
 
         // Step 2: Read the raw audio data from the temporary WAV file
         const rawBuffer = fs.readFileSync(rawAudioPath);
-        // The rawBuffer contains 16-bit signed integers. Convert to Float32Array for processAudio.
         const audioDataInt16 = new Int16Array(rawBuffer.buffer, rawBuffer.byteOffset, rawBuffer.length / Int16Array.BYTES_PER_ELEMENT);
         const audioDataFloat32 = new Float32Array(audioDataInt16.length);
         for(let i=0; i<audioDataInt16.length; i++) {
-            // Normalize 16-bit integer values to -1.0 to 1.0 range
             audioDataFloat32[i] = audioDataInt16[i] / 32768.0;
         }
         console.log(`[createFingerprint] Raw audio data read. Number of samples: ${audioDataFloat32.length}`);
@@ -61,13 +78,10 @@ async function createFingerprint(audioFilePath) {
         console.log(`[createFingerprint] Audio processed by processAudio.`);
 
         // Step 4: Create a simple fingerprint hash from the magnitudes
-        // This is a basic example; real fingerprinting algorithms are more complex.
-        // For demonstration, we'll take a subset of magnitudes and hash them.
-        const crypto = require('crypto'); // Node.js built-in crypto module
         const fingerprintData = magnitudes
-            .filter((_, i) => i % 10 === 0) // Take every 10th magnitude for a smaller, representative set
-            .map(m => Math.floor(m * 1000)) // Convert to integer, scale up for distinctness
-            .join(''); // Join into a string
+            .filter((_, i) => i % 10 === 0)
+            .map(m => Math.floor(m * 1000))
+            .join('');
 
         const hash = crypto.createHash('sha256');
         hash.update(fingerprintData);

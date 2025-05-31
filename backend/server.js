@@ -2,9 +2,10 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const fileUpload = require('express-fileupload');
+const fileUpload = require('express-fileupload'); // Make sure express-fileupload is installed: npm install express-fileupload
 const morgan = require('morgan');
 const path = require('path');
+const fs = require('fs'); // Import fs to ensure temporary directory exists
 
 const ErrorResponse = require('./utils/errorResponse');
 const authRoutes = require('./routes/auth');
@@ -13,13 +14,24 @@ const recognizeRoutes = require('./routes/recognize');
 
 const app = express();
 
+// Define a common temporary directory path
+const tempUploadDir = path.join(__dirname, 'tmp');
+
+// Ensure the temporary directory exists
+if (!fs.existsSync(tempUploadDir)) {
+    fs.mkdirSync(tempUploadDir);
+    console.log(`Created temporary upload directory: ${tempUploadDir}`);
+}
+
 // Middleware
 app.use(cors());
-// --- Critical for Debugging: Add debug: true ---
+
 app.use(fileUpload({
-  useTempFiles : true,
-  tempFileDir : '/tmp/' // Or './tmp/' for a local folder, or a specific path like 'C:/temp' on Windows
-})); // <-- ADDED debug: true
+    useTempFiles : true,
+    // Use a relative path that's guaranteed to be writable and exists
+    tempFileDir : tempUploadDir, // Use the dynamically created path
+    debug: true // Add this to get more verbose logs from express-fileupload
+}));
 app.use(express.json());
 app.use(morgan('dev'));
 
@@ -41,7 +53,7 @@ app.use((err, req, res, next) => {
     let error = { ...err };
     error.message = err.message;
 
-    console.error(err.stack);
+    console.error(err.stack); // Log the full stack trace for server errors
 
     if (err.name === 'CastError') {
         const message = `Resource not found with id of ${err.value}`;
@@ -57,6 +69,12 @@ app.use((err, req, res, next) => {
         const messages = Object.values(err.errors).map(val => val.message);
         error = new ErrorResponse(messages.join(', '), 400);
     }
+
+    // Specific handling for file upload errors
+    if (err.name === 'AbortError' || err.message.includes('Unexpected end of form')) {
+        error = new ErrorResponse('File upload failed: ' + err.message, 400);
+    }
+
 
     res.status(error.statusCode || 500).json({
         success: false,
