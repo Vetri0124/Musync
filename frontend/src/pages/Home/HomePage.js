@@ -21,10 +21,10 @@ const HomePage = () => {
           <h3>Explore music</h3>
           <p>Discover new songs and artists</p>
         </div>
-        <div>
+        {/* <div>
           <h3>Save your history</h3>
           <p>Keep track of all your recognized songs</p>
-        </div>
+        </div> */}
       </Features>
     </HomeContainer>
   );

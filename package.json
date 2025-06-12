@@ -1,7 +1,7 @@
 {
-    "name": "shazam-clone",
+    "name": "mu-sync",
     "version": "1.0.0",
-    "description": "Shazam Clone - Full Stack Application",
+    "description": "Mu-Sync - Full Stack Application",
     "scripts": {
         "start": "node backend/server.js",
         "server": "nodemon backend/server.js",
@@ -15,6 +15,8 @@
         "dotenv": "^16.5.0",
         "express": "^5.1.0",
         "mongoose": "^8.15.1",
-        "react": "^19.1.0"
+        "react": "^19.1.0",
+        "react-icons": "^5.5.0",
+        "react-tsparticles": "^2.12.2"
     }
 }

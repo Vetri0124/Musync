@@ -36,7 +36,7 @@ app.use(express.json());
 app.use(morgan('dev'));
 
 // Database connection
-mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://vv520695:VJEpdtaXEO9gKbZa@cluster0.fhrsfl8.mongodb.net/')
+mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://vv520695:DlZeqVV3HPACmEg7@cluster0.7p1x6b7.mongodb.net/')
   .then(() => console.log('MongoDB connected...'))
   .catch(err => {
     console.error('MongoDB connection error:', err);

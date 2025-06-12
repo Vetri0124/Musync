@@ -1,12 +1,11 @@
-const Song = require('../models/Song'); // Still relevant if you save recognized songs
+const Song = require('../models/Song');
 const User = require('../models/User');
-// const { createFingerprint } = require('../utils/audioProcessing'); // <--- REMOVE OR COMMENT OUT THIS LINE if you haven't yet
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 const axios = require('axios');
-const fs = require('fs'); // Import Node.js File System module for cleanup
-const crypto = require('crypto'); // Node.js built-in crypto module for signing
-const FormData = require('form-data'); // Import FormData for sending multipart data
+const fs = require('fs');
+const crypto = require('crypto');
+const FormData = require('form-data');
 
 // Helper function to build ACRCloud signature
 function buildACRCloudSignature(httpMethod, httpUri, accessKey, accessSecret, dataType, signatureVersion, timestamp) {
@@ -28,7 +27,7 @@ function buildACRCloudSignature(httpMethod, httpUri, accessKey, accessSecret, da
 // @route   POST /api/recognize
 // @access  Private
 exports.recognizeSong = asyncHandler(async (req, res, next) => {
-    console.log('Recognize song endpoint hit (ACRCloud integration).'); // Updated log
+    console.log('Recognize song endpoint hit (ACRCloud integration).');
 
     if (!req.files || !req.files.audio) {
         console.error('No audio file uploaded.');
@@ -39,7 +38,6 @@ exports.recognizeSong = asyncHandler(async (req, res, next) => {
     console.log(`Received audio file: ${audioFile.name}, MimeType: ${audioFile.mimetype}, Size: ${audioFile.size} bytes`);
     console.log(`Temporary file path: ${audioFile.tempFilePath}`);
 
-    // Check file type
     if (!audioFile.mimetype.startsWith('audio')) {
         console.error(`Invalid file type: ${audioFile.mimetype}`);
         if (audioFile.tempFilePath && fs.existsSync(audioFile.tempFilePath)) {
@@ -49,9 +47,7 @@ exports.recognizeSong = asyncHandler(async (req, res, next) => {
         return next(new ErrorResponse('Please upload an audio file', 400));
     }
 
-    // Check file size (ACRCloud has limits, often around 15 seconds or specific file sizes for free tier)
-    // You might need to adjust this based on ACRCloud's exact free tier limits for audio duration/size.
-    const maxSize = process.env.MAX_FILE_UPLOAD || 10 * 1024 * 1024; // 10MB default
+    const maxSize = process.env.MAX_FILE_UPLOAD || 10 * 1024 * 1024;
     if (audioFile.size > maxSize) {
         console.error(`File size too large: ${audioFile.size} bytes`);
         if (audioFile.tempFilePath && fs.existsSync(audioFile.tempFilePath)) {
@@ -78,7 +74,7 @@ exports.recognizeSong = asyncHandler(async (req, res, next) => {
         const httpUri = '/v1/identify';
         const dataType = 'audio';
         const signatureVersion = '1';
-        const timestamp = Date.now().toString(); // Unix epoch time in milliseconds
+        const timestamp = Date.now().toString();
 
         const signature = buildACRCloudSignature(
             httpMethod,
@@ -90,10 +86,9 @@ exports.recognizeSong = asyncHandler(async (req, res, next) => {
             timestamp
         );
 
-        // Create a FormData object to send the file and parameters
         const formData = new FormData();
         formData.append('access_key', acrcloudAccessKey);
-        formData.append('sample_bytes', audioFile.size); // ACRCloud needs this for some reason
+        formData.append('sample_bytes', audioFile.size);
         formData.append('sample', fs.createReadStream(audioFile.tempFilePath), {
             filename: audioFile.name,
             contentType: audioFile.mimetype,
@@ -103,44 +98,33 @@ exports.recognizeSong = asyncHandler(async (req, res, next) => {
         formData.append('data_type', dataType);
         formData.append('signature_version', signatureVersion);
 
-        console.log(`[ACRCloud] Sending audio to ACRCloud API at ${acrcloudHost}${httpUri}...`);
+        console.log(`[ACRCloud] Sending audio to ACRCloud API at https://${acrcloudHost}${httpUri}...`);
         const acrcloudResponse = await axios.post(`https://${acrcloudHost}${httpUri}`, formData, {
             headers: {
-                ...formData.getHeaders(), // Important for multipart/form-data
+                ...formData.getHeaders(),
                 'Accept': 'application/json'
             },
-            maxContentLength: Infinity, // Allow large file uploads
-            maxBodyLength: Infinity,    // Allow large file uploads
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity,
         });
 
         acrcloudResponseData = acrcloudResponse.data;
         console.log('[ACRCloud] ACRCloud API response received:', JSON.stringify(acrcloudResponseData, null, 2));
 
-        // --- START OF THE FIX ---
-        // Check for ACRCloud errors or no results
         if (acrcloudResponseData.status.code !== 0) {
-            // Specifically check for 'No result' code (1001)
             if (acrcloudResponseData.status.code === 1001) {
                 console.log('[ACRCloud] No match found by ACRCloud API (Code 1001).');
-                return res.status(200).json({ // Return 200 OK for a successful "no match"
+                return res.status(200).json({
                     success: true,
                     data: null,
                     message: 'No matching song found via ACRCloud recognition service.'
                 });
             } else {
-                // For any other non-zero status code, treat it as an actual error from ACRCloud's side
                 console.error('[ACRCloud] ACRCloud API returned an error:', acrcloudResponseData.status.msg);
                 throw new ErrorResponse(`ACRCloud API error: ${acrcloudResponseData.status.msg}`, 500);
             }
         }
-        // --- END OF THE FIX ---
-
-        // If status.code IS 0, it means a match was found, so the code continues here.
-        // The previous if (!acrcloudResponseData.metadata || ...) check was redundant
-        // if status.code === 0, but it doesn't hurt. We can rely on code 0 for a match.
-        // ACRCloud's API doc confirms that if code is 0, metadata.music will exist and have results.
         if (!acrcloudResponseData.metadata || !acrcloudResponseData.metadata.music || acrcloudResponseData.metadata.music.length === 0) {
-            // This case should ideally not be hit if status.code is 0, but as a safeguard.
             console.warn('[ACRCloud] Unexpected: Status code 0 but no music metadata found.');
             return res.status(200).json({
                 success: true,
@@ -149,25 +133,20 @@ exports.recognizeSong = asyncHandler(async (req, res, next) => {
             });
         }
 
-
     } catch (acrcloudError) {
         console.error('Error calling ACRCloud API:', acrcloudError);
-        // Clean up the temporary file if ACRCloud call fails
         if (audioFile.tempFilePath && fs.existsSync(audioFile.tempFilePath)) {
             fs.unlinkSync(audioFile.tempFilePath);
             console.log(`Cleaned up temp file: ${audioFile.tempFilePath}`);
         }
-        // If it's an axios error, check for response status for better error messages
         if (acrcloudError.response) {
             console.error('ACRCloud API Response Data:', acrcloudError.response.data);
             console.error('ACRCloud API Response Status:', acrcloudError.response.status);
-            // Use ACRCloud's provided status or default to 500
             const statusCode = acrcloudError.response.status || 500;
             return next(new ErrorResponse(`ACRCloud API error: ${statusCode} - ${JSON.stringify(acrcloudError.response.data)}`, statusCode));
         }
         return next(new ErrorResponse('Failed to recognize audio with ACRCloud API.', 500));
     } finally {
-        // CRITICAL: Clean up the temporary file after processing, regardless of success or failure
         if (audioFile.tempFilePath && fs.existsSync(audioFile.tempFilePath)) {
             fs.unlinkSync(audioFile.tempFilePath);
             console.log(`Cleaned up temp file: ${audioFile.tempFilePath}`);
@@ -175,26 +154,67 @@ exports.recognizeSong = asyncHandler(async (req, res, next) => {
     }
 
     // Process ACRCloud's successful recognition result (status.code === 0)
-    const recognizedTrack = acrcloudResponseData.metadata.music[0]; // Get the first (best) match
+    const recognizedTrack = acrcloudResponseData.metadata.music[0];
+
+    // Extract necessary data, including duration and audioFingerprint (acrid)
     const title = recognizedTrack.title;
     const artist = recognizedTrack.artists ? recognizedTrack.artists.map(a => a.name).join(', ') : 'Unknown Artist';
+    const album = recognizedTrack.album ? recognizedTrack.album.name : null;
+    const releaseDate = recognizedTrack.release_date; // This is a string like "2008-01-01"
+    const genre = recognizedTrack.genres && recognizedTrack.genres.length > 0 ? recognizedTrack.genres[0].name : null; // Your schema has a single 'genre' string
+    const year = releaseDate ? parseInt(releaseDate.substring(0, 4)) : null; // Extract year from releaseDate
+    const duration = recognizedTrack.duration_ms; // ACRCloud provides duration in milliseconds
+    const audioFingerprint = recognizedTrack.acrid; // Use ACRCloud's acrid as the fingerprint
+
+    // Extracting external URLs for comprehensive data (matching your SongSchema)
+    const spotifyUrl = recognizedTrack.external_metadata?.spotify?.external_urls?.spotify || null;
+    const appleMusicUrl = recognizedTrack.external_metadata?.apple_music?.external_urls?.apple_music || null;
+    const youtubeUrl = recognizedTrack.external_metadata?.youtube?.vid ? `https://www.youtube.com/watch?v=${recognizedTrack.external_metadata.youtube.vid}` : null;
+    const coverImage = recognizedTrack.album?.cover || recognizedTrack.external_metadata?.spotify?.album?.images?.[0]?.url || 'default.jpg';
+
 
     console.log(`ACRCloud matched: ${title} by ${artist}`);
 
-    // === Optional: Add to user's history (if you want to save recognized songs) ===
+    // === Add to user's history and save song to database ===
     let songInDb = null;
     if (req.user) {
         try {
-            songInDb = await Song.findOne({ title: title, artist: artist });
+            // Try to find the song by its audioFingerprint (ACRCloud ID)
+            songInDb = await Song.findOne({ audioFingerprint: audioFingerprint });
+
             if (!songInDb) {
-                 songInDb = await Song.create({
-                     title: title,
-                     artist: artist,
-                     album: recognizedTrack.album ? recognizedTrack.album.name : null,
-                     // Add other fields from ACRCloud's response if your Song model supports them
-                 });
-                 console.log('New song added to local database from ACRCloud recognition.');
+                // If the song doesn't exist, create it with all the extracted data
+                songInDb = await Song.create({
+                    title: title,
+                    artist: artist,
+                    album: album,
+                    genre: genre, // Use the extracted genre
+                    year: year, // Use the extracted year
+                    duration: duration, // CRUCIAL: Pass duration
+                    audioFingerprint: audioFingerprint, // CRUCIAL: Pass audioFingerprint
+                    coverImage: coverImage, // Pass cover image URL
+                    spotifyUrl: spotifyUrl,
+                    appleMusicUrl: appleMusicUrl,
+                    youtubeUrl: youtubeUrl,
+                });
+                console.log('New song added to local database from ACRCloud recognition.');
+            } else {
+                console.log('Song already exists in local database.');
+                // Optionally update existing song details if they are outdated, though usually not needed if found by fingerprint
+                // For example:
+                // songInDb.set({
+                //     album: album,
+                //     genre: genre,
+                //     year: year,
+                //     coverImage: coverImage,
+                //     spotifyUrl: spotifyUrl,
+                //     appleMusicUrl: appleMusicUrl,
+                //     youtubeUrl: youtubeUrl,
+                // });
+                // await songInDb.save();
             }
+
+            // Add the recognized song to the user's history
             await User.findByIdAndUpdate(req.user.id, {
                 $push: {
                     history: {
@@ -205,31 +225,32 @@ exports.recognizeSong = asyncHandler(async (req, res, next) => {
             });
             console.log('Song added to user history.');
         } catch (historyError) {
-            console.error('Error adding song to user history or finding/creating song in DB:', historyError);
+            console.error('Error adding song to user history or finding/creating song in DB:', historyError.message);
+            // Pass the validation error or other DB errors to the global error handler
+            return next(historyError);
         }
     }
 
-    // Prepare response for frontend
+    // Prepare response for frontend - ensure all fields match what frontend expects
     res.status(200).json({
         success: true,
         data: {
             title: title,
             artist: artist,
-            album: recognizedTrack.album ? recognizedTrack.album.name : null,
-            release_date: recognizedTrack.release_date,
-            label: recognizedTrack.label,
-            timecode: acrcloudResponseData.metadata.timestamp_s, // Timecode of the match
-            // ACRCloud provides various image sizes and external IDs for other services
-            albumCover: recognizedTrack.album?.cover || recognizedTrack.external_metadata?.spotify?.album?.images?.[0]?.url || null,
-            previewUrl: recognizedTrack.external_metadata?.spotify?.preview_url || recognizedTrack.external_metadata?.deezer?.preview || null,
-            externalUrls: {
-                spotify: recognizedTrack.external_metadata?.spotify?.external_urls?.spotify,
-                deezer: recognizedTrack.external_metadata?.deezer?.link,
-                youtube: recognizedTrack.external_metadata?.youtube?.vid
-            },
-            genres: recognizedTrack.genres ? recognizedTrack.genres.map(g => g.name) : [],
-            // Include raw ACRCloud data if helpful for debugging or frontend logic
-            acrcloudInfo: acrcloudResponseData
+            album: album,
+            genre: genre, // Include genre
+            year: year, // Include year
+            duration: duration, // Include duration
+            audioFingerprint: audioFingerprint, // Include fingerprint
+            coverImage: coverImage, // Include coverImage
+            spotifyUrl: spotifyUrl,
+            appleMusicUrl: appleMusicUrl,
+            youtubeUrl: youtubeUrl,
+            // ACRCloud-specific metadata that might be useful
+            release_date: releaseDate,
+            label: recognizedTrack.label || null,
+            timecode: acrcloudResponseData.metadata.timestamp_s,
+            acrcloudInfo: acrcloudResponseData // Full ACRCloud response if needed for debug/details
         },
         message: 'Song recognized by ACRCloud!'
     });

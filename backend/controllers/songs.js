@@ -91,11 +91,11 @@ exports.searchSongs = asyncHandler(async (req, res, next) => {
     }
 
     // --- ADD THESE CONSOLE.LOGS ---
-    console.log('LASTFM_API_KEY from process.env:', process.env.LASTFM_API_KEY);
-    const LASTFM_API_KEY = process.env.LASTFM_API_KEY;
+    console.log('LASTFM_API_KEY from process.env:', process.env.LASTFM_ACCESS);
+    const LASTFM_ACCESS = process.env.LASTFM_ACCESS;
     const LASTFM_BASE_URL = 'http://ws.audioscrobbler.com/2.0/';
 
-    const lastfmUrl = `${LASTFM_BASE_URL}?method=track.search&track=${encodeURIComponent(query)}&api_key=${LASTFM_API_KEY}&format=json`;
+    const lastfmUrl = `${LASTFM_BASE_URL}?method=track.search&track=${encodeURIComponent(query)}&api_key=${LASTFM_ACCESS}&format=json`;
     console.log('Constructed Last.fm API Request URL:', lastfmUrl);
     // --- END ADDED CONSOLE.LOGS ---
 
