@@ -7,7 +7,7 @@ const Recorder = () => {
     const {
         recording,
         audioBlob,
-        result, // This 'result' is the full backend response object (e.g., {success: true, data: {...}, message: "..."})
+        result,
         loading,
         error,
         startRecording,
@@ -121,15 +121,15 @@ const Recorder = () => {
             {songData ? ( // If songData exists (i.e., a song was matched)
                 <ResultContainer>
                     <h3>Match Found!</h3>
-                    {/* Use songData.coverImage, provide fallback */}
+                    {/* Use songData.coverImage, provide fallback to default-cover.png */}
                     <img
-                        src={songData.coverImage || 'https://placehold.co/200x200/cccccc/333333?text=No+Cover'}
+                        src={songData.coverImage || 'default-cover.png'} // Changed this line
                         alt={songData.title || 'Album Cover'}
-                        onError={(e) => { e.target.onerror = null; e.target.src = 'https://placehold.co/200x200/cccccc/333333?text=Image+Error'; }}
+                        onError={(e) => { e.target.onerror = null; e.target.src = 'default-cover.png'; }} // Changed this line
                     />
                     <h4>{songData.title}</h4>
                     <p>Artist: {songData.artist}</p>
-                    <p>Album: {songData.album || 'N/A'}</p> {/* Use albumName from backend */}
+                    <p>Album: {songData.album || 'N/A'}</p>
                     <p>Genre: {songData.genre || 'N/A'}</p>
                     <p>Year: {songData.year || 'N/A'}</p>
                     <p>Duration: {songData.duration ? `${Math.floor(songData.duration / 1000)} seconds` : 'N/A'}</p>
@@ -161,15 +161,7 @@ const Recorder = () => {
                 !loading && !recording && result && noMatchFound && (
                     <ResultContainer>
                         <h3>No Match Found!</h3>
-                        <img
-                            src="https://placehold.co/200x200/cccccc/333333?text=No+Cover"
-                            alt="No Album Cover Available"
-                        />
-                         <p>Artist:</p>
-                         <p>Album:</p>
-                         <p>Genre:</p>
-                         <p>Year:</p>
-                         <p>Duration: N/A</p>
+                       
                         <Button onClick={reset} style={{ marginLeft: '1rem', marginTop: '1rem' }}>
                             Try Again
                         </Button>

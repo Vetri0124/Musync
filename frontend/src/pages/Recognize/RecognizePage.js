@@ -6,7 +6,7 @@ const RecognizePage = () => {
   return (
     <RecognizeContainer>
       <h2>Recognize a Song</h2>
-      <p>Play the song or sing/hum it, and we'll identify it for you</p>
+      <p>Play the song and we'll identify it for you</p>
       <Recorder />
     </RecognizeContainer>
   );
