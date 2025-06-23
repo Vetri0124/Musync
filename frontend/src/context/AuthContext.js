@@ -6,7 +6,7 @@ export const AuthContext = createContext();
 
 // Define your API base URL here.
 // IMPORTANT: Replace 'http://localhost:5000' with the actual URL and port where your backend is running.
-const API_BASE_URL = 'http://localhost:5000'; // Adjust this to your actual backend URL
+const API_BASE_URL = 'https://musync-u6pk.onrender.com'; // Adjust this to your actual backend URL
 
 const API = axios.create({
   baseURL: API_BASE_URL,
