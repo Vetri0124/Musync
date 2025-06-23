@@ -26,12 +26,12 @@ if (!fs.existsSync(tempUploadDir)) {
 // Middleware
 app.use(cors());
 
-app.use(fileUpload({
-    useTempFiles : true,
-    // Use a relative path that's guaranteed to be writable and exists
-    tempFileDir : tempUploadDir, // Use the dynamically created path
-    debug: true // Add this to get more verbose logs from express-fileupload
-}));
+// app.use(fileUpload({
+//     useTempFiles : true,
+//     // Use a relative path that's guaranteed to be writable and exists
+//     tempFileDir : tempUploadDir, // Use the dynamically created path
+//     debug: true // Add this to get more verbose logs from express-fileupload
+// }));
 app.use(express.json());
 app.use(morgan('dev'));
 
